@@ -98,8 +98,8 @@ def recommended_list(driver):
                 row = cursor.fetchall()
                 if len(row) == 0 and result is not None:
                     cursor.execute(
-                        "INSERT INTO ig_list (`ig_link`, `fans`, `crawl_count`, `error_count`, `type`) VALUE (%s, %s, %s, %s, %s)",
-                        (result, 0, 0, 0, 4)
+                        "INSERT INTO ig_list (`ig_link`, `fans`, `crawl_count`, `error_count`, `scraper_count`, `type`) VALUE (%s, %s, %s, %s, %s, %s)",
+                        (result, 0, 0, 0, 0, 4)
                     )
                 maxdb.commit()
             else:
@@ -184,7 +184,7 @@ if __name__ == '__main__':
     database = "igquery",
     )
     cursor=maxdb.cursor()
-    cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list WHERE `error_count`<=5 ORDER BY `crawl_count`, `type` ASC, RAND() ASC LIMIT 1") #隨機撈一個帳號且次數最少
+    cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list WHERE `error_count`<=5 ORDER BY `crawl_count` ASC, `type` ASC, RAND() ASC LIMIT 1") #隨機撈一個帳號且次數最少
     row = cursor.fetchone()
     ig_link = row[0]
     table_name = ''

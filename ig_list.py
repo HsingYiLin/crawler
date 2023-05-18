@@ -32,7 +32,7 @@ def get_data(driver) :
         div2 = div1.find_element(By.XPATH , ".//div[@class='col-12 col-sm-12 col-lg-5']")
         button = div2.find_element(By.XPATH , ".//button")
         button.click()
-        time.sleep(20)
+        time.sleep(18)
         # ig_name
         div3 = driver.find_element(By.ID, "account-pjax")
         div4 = div3.find_element(By.XPATH, ".//div[@class='js-data']")
@@ -85,6 +85,10 @@ def language_type(text) :
     
 
 if __name__ == '__main__':
+    now1 = datetime.datetime.now()
+    pre_crawl_time1 = now1.strftime('%Y-%m-%d %H:%M:%S')
+    print('start_time -------- ' + pre_crawl_time1)
+
     maxdb = mysql.connector.connect(
     host = "139.162.97.51",
     user = "cfd_ig_query_mysql",
@@ -92,15 +96,22 @@ if __name__ == '__main__':
     database = "igquery",
     )
     cursor=maxdb.cursor()
-    cursor.execute("SELECT `id`, `ig_link` FROM ig_list WHERE `error_count`<=5 ORDER BY `crawl_count`, RAND() ASC LIMIT 1") #隨機撈一個帳號且次數最少
-    row = cursor.fetchone()
-    id = row[0]
-    ig_link = row[1]
-    now = datetime.datetime.now()
-    pre_crawl_time = now.strftime('%Y-%m-%d %H:%M:%S')
-    driver = get_driver()
-    print('crawl_time -------- ' + pre_crawl_time)
-    get_data(driver)
+    count = 0
+    times_2min = 3
+    while count < times_2min :
+        cursor.execute("SELECT `id`, `ig_link` FROM ig_list WHERE `error_count`<=5 ORDER BY `crawl_count`, RAND() ASC LIMIT 1") #隨機撈一個帳號且次數最少
+        row = cursor.fetchone()
+        id = row[0]
+        ig_link = row[1]
+        now = datetime.datetime.now()
+        pre_crawl_time = now.strftime('%Y-%m-%d %H:%M:%S')
+        driver = get_driver()
+        # print('crawl_time -------- ' + pre_crawl_time)
+        get_data(driver)
+        driver.quit()
+        count += 1
     cursor.close()
     maxdb.close()
-    driver.quit()
+    now2 = datetime.datetime.now()
+    pre_crawl_time2 = now2.strftime('%Y-%m-%d %H:%M:%S')
+    print('end_time -------- ' + pre_crawl_time2)
