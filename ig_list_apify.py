@@ -2,7 +2,7 @@ from apify_client import ApifyClient
 import mysql.connector
 import datetime
 import re
-import time
+
 
 def language_type(text) :
     chinese_pattern = re.compile(r'[\u4e00-\u9fff]') # 中文
@@ -33,12 +33,11 @@ if __name__ == '__main__':
     )
     cursor=maxdb.cursor()
     # Initialize the ApifyClient with your API token
-    client = ApifyClient("apify_api_4IBaraqPabid1UuYSBx5RUrmFfAtaY1iUJGh")
+    client = ApifyClient("apify_api_PVJef0mmKp5SgZAUoayYua3mUOitr6270MMC")
 try:
     now = datetime.datetime.now()
     pre_crawl_time = now.strftime('%Y-%m-%d %H:%M:%S')
-    # cursor.execute("SELECT `id`, `ig_link` FROM ig_list WHERE `error_count`<=5 ORDER BY `crawl_count` ASC, `type` ASC, RAND() ASC LIMIT 1") #隨機撈一個帳號且次數最少
-    cursor.execute("SELECT `id`, `ig_link`, `scraper_count` FROM ig_list  ORDER BY `scraper_count` ASC, `type` ASC, RAND() ASC LIMIT 1") #隨機撈一個帳號且次數最少
+    cursor.execute("SELECT `id`, `ig_link`, `scraper_count` FROM ig_list  ORDER BY `crawl_count` ASC, `type` ASC, RAND() ASC LIMIT 1") #隨機撈一個帳號且次數最少
     row = cursor.fetchone()
     id = row[0]
     ig_link = row[1]
@@ -69,7 +68,6 @@ try:
     cnt = 0
     # Fetch and print actor results from the run's dataset (if there are any)
     for item in client.dataset(run["defaultDatasetId"]).iterate_items():
-        # print(item)
         ig_name = item['fullName']
         fans = item['followersCount']
         type_str = language_type(ig_name)
@@ -83,7 +81,6 @@ try:
             (fans, type_str, scraper_count, pre_crawl_time, id,)
         )
         maxdb.commit()
-        # print('123',item['relatedProfiles'])
         for related in item['relatedProfiles']:
             ig_link_rel = related['username']
             ig_name_rel = related['full_name']
