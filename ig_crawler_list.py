@@ -13,12 +13,13 @@ def get_driver(ig_link) :
     options.add_argument("--start-maximized")
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    driver = webdriver.Chrome(options=options)
-    driver.get('https://business.notjustanalytics.com/plus/' + ig_link)
     # cookies = pickle.load(open("C:\igquery\crawl\cookies.pkl", "rb"))
     cookies = pickle.load(open("/home/hsingyi/igquery/crawl/cookies.pkl", "rb"))
+    driver = webdriver.Chrome(options=options)
+    driver.get('https://business.notjustanalytics.com/plus/' + ig_link)
     for cookie in cookies :
         driver.add_cookie(cookie)
+    driver.refresh()
     return driver
 
 
@@ -44,12 +45,12 @@ def get_data(driver, data) :
             avg_like = driver.find_element(By.ID, 'avg_like').text.replace(',', '')
             avg_comment = driver.find_element(By.ID, 'avg_comment').text.replace(',', '')
             avg_views = driver.find_element(By.ID, 'avg_views').text.replace(',', '')
-            int_fans = int(fans) if fans != '' else 0
-            int_following = int(following) if following != '' else 0
-            int_post = int(post) if post != '' else 0
-            int_avg_like = int(avg_like) if avg_like != '' else 0
-            int_avg_comment = int(avg_comment) if avg_comment != '' else 0
-            int_avg_views = int(avg_views) if avg_views != '' else 0
+            int_fans = int(fans) if fans != '' and fans != '--' else 0
+            int_following = int(following) if following != '' and following != '--' else 0
+            int_post = int(post) if post != '' and post != '--' else 0
+            int_avg_like = int(avg_like) if avg_like != '' and avg_like != '--' else 0
+            int_avg_comment = int(avg_comment) if avg_comment != '' and avg_comment != '--' else 0
+            int_avg_views = int(avg_views) if avg_views != '' and avg_views != '--' else 0
             
             table_name = fans_table(int_fans)
             is_insert = clear_duplicate_data(username, table_name)
@@ -184,7 +185,7 @@ if __name__ == '__main__':
     database = "igquery",
     )
     cursor=maxdb.cursor()
-    cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list WHERE `error_count`<=5 ORDER BY `crawl_count` ASC, `type` ASC, RAND() ASC LIMIT 1") #隨機撈一個帳號且次數最少
+    cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list WHERE `error_count`<1 ORDER BY `crawl_count` ASC, `type` ASC, RAND() LIMIT 1") #隨機撈一個帳號且次數最少
     row = cursor.fetchone()
     ig_link = row[0]
     table_name = ''
