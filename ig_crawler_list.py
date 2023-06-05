@@ -16,12 +16,12 @@ def get_driver(ig_link) :
     # cookies = pickle.load(open("C:\igquery\crawl\cookies.pkl", "rb"))
     cookies = pickle.load(open("/home/hsingyi/igquery/crawl/cookies.pkl", "rb"))
     driver = webdriver.Chrome(options=options)
+    print('ig_link',ig_link)
     driver.get('https://business.notjustanalytics.com/plus/' + ig_link)
+    
     for cookie in cookies :
         driver.add_cookie(cookie)
-    driver.refresh()
     return driver
-
 
 def get_data(driver, data) :
     time.sleep(25)
@@ -59,26 +59,29 @@ def get_data(driver, data) :
             if table_name != '' :
                 if is_insert :
                     cursor.execute(
-                        "INSERT INTO "+ table_name +" (`ig_link`, `ig_name`, `fans`, `following`, `post`, `avg_like`, `avg_comment`, `avg_views`, `type`, `crawl_time`) VALUE (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                        (username, ig_name, int_fans, int_following, int_post, int_avg_like, int_avg_comment, int_avg_views, type_str, crawl_time,)
+                        "INSERT INTO "+ table_name +" (`ig_link`, `ig_name`, `fans`, `following`, `post`, `avg_like`, `avg_comment`, `avg_views`, `type`, `crawl_time`) VALUE ("+repr(username)+", "+repr(ig_name)+", "+str(int_fans)+", "+str(int_following)+", "+str(int_post)+", "+str(int_avg_like)+", "+str(int_avg_comment)+", "+str(int_avg_views)+", "+str(type_str)+", "+repr(crawl_time)+")"
                     )
                 else :
                     cursor.execute(
-                        "UPDATE "+ table_name +" SET `ig_name`=%s, `fans`=%s, `following`=%s, `post`=%s, `avg_like`=%s, `avg_comment`=%s, `avg_views`=%s, `type`=%s, `crawl_time`=%s WHERE `ig_link`=%s",
-                        (ig_name, int_fans, int_following, int_post, int_avg_like, int_avg_comment, int_avg_views, type_str, crawl_time, username,)
+                        "UPDATE "+ table_name +" SET ig_name="+repr(ig_name)+", fans="+str(int_fans)+", following="+str(int_following)+", `post`="+str(int_post)+", avg_like="+str(int_avg_like)+", avg_comment="+str(int_avg_comment)+", avg_views="+str(int_avg_views)+", type="+str(type_str)+", crawl_time="+repr(crawl_time)+" WHERE ig_link="+repr(username)
                     )
             crawl_count += 1
             cursor.execute(
-                "UPDATE ig_list SET `fans`=%s, `crawl_count`=%s, `type`=%s, `crawl_time`=%s WHERE `ig_link`=%s",
-                (int_fans, crawl_count, type_str, crawl_time, username,)
+                "UPDATE ig_list SET `fans`="+str(int_fans)+", `crawl_count`="+str(crawl_count)+", `type`="+str(type_str)+", `crawl_time`="+repr(crawl_time)+" WHERE `ig_link`="+repr(username)
+            )
+            maxdb.commit()
+        else :
+            error_count += 1
+            crawl_count += 1
+            cursor.execute(
+                "UPDATE ig_list SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+" WHERE `ig_link`="+repr(username)
             )
             maxdb.commit()
     except Exception as e :
         error_count += 1
         crawl_count += 1
         cursor.execute(
-            "UPDATE ig_list SET `crawl_count`=%s, `error_count`=%s WHERE `ig_link`=%s",
-            (crawl_count, error_count ,username,)
+            "UPDATE ig_list SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+" WHERE `ig_link`="+repr(username)
         )
         maxdb.commit()
         print('no By.ID: ' + ig_link)
@@ -98,14 +101,13 @@ def recommended_list(driver):
                 cursor.execute("SELECT ig_link FROM ig_list WHERE `ig_link`=%s",(result,)) # 判斷是否有重複
                 row = cursor.fetchall()
                 if len(row) == 0 and result is not None:
+                    print('rcmd',result)
                     cursor.execute(
-                        "INSERT INTO ig_list (`ig_link`, `fans`, `crawl_count`, `error_count`, `scraper_count`, `type`) VALUE (%s, %s, %s, %s, %s, %s)",
-                        (result, 0, 0, 0, 0, 4)
+                        "INSERT INTO ig_list (`ig_link`, `fans`, `crawl_count`, `error_count`, `type`, `pre_crawl_time`, `crawl_time`) VALUE ("+repr(result)+", 0, 0, 0, 4, "+repr(crawl_time)+", '0000-00-00 00:00:00')"
                     )
                 maxdb.commit()
             else:
                 continue
-        print('new ig count: ' + len(a_tags))
     except Exception as e :
         print('no related_1 @onclick or ig_link duplicate')
 
@@ -178,6 +180,9 @@ def fans_table(num): #根據粉絲對照table
     return table_name
 
 if __name__ == '__main__':
+    now = datetime.datetime.now()
+    crawl_time = now.strftime('%Y-%m-%d %H:%M:%S')
+    print('crawl_time -------- ' + crawl_time)
     maxdb = mysql.connector.connect(
     host = "139.162.97.51",
     user = "cfd_ig_query_mysql",
@@ -185,14 +190,11 @@ if __name__ == '__main__':
     database = "igquery",
     )
     cursor=maxdb.cursor()
-    cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list WHERE `error_count`<1 ORDER BY `crawl_count` ASC, `type` ASC, RAND() LIMIT 1") #隨機撈一個帳號且次數最少
+    cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list WHERE `error_count`<=3 ORDER BY `crawl_count` ASC, `type` ASC, RAND() LIMIT 1") #隨機撈一個帳號且次數最少
     row = cursor.fetchone()
     ig_link = row[0]
     table_name = ''
     driver = get_driver(ig_link)
-    now = datetime.datetime.now()
-    crawl_time = now.strftime('%Y-%m-%d %H:%M:%S')
-    print('crawl_time -------- ' + crawl_time)
     get_data(driver, row)
     recommended_list(driver)
     cursor.close()
