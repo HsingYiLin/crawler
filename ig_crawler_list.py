@@ -1,3 +1,4 @@
+import random
 import mysql.connector
 import pickle
 import time
@@ -7,15 +8,47 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 import undetected_chromedriver as uc
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+
+def random_ip() :
+    proxies = [
+        '20.219.180.149',
+        '202.142.74.76',
+        '47.254.169.94',
+        '82.165.184.53',
+        '209.127.39.102',
+        '186.121.235.66',
+        '45.199.141.47',
+        '20.219.176.57',
+        '200.105.215.22',
+        '46.209.222.211',
+        '8.219.64.236',
+        '20.204.214.23',
+        '24.152.40.49',
+        '5.188.154.104',
+        '185.220.103.7',
+        '185.15.172.212'
+    ]
+    proxy_ip = random.choice(proxies)
+    return  proxy_ip
 
 def get_driver(ig_link) :
-    options = webdriver.ChromeOptions()
-    options.add_argument("--start-maximized")
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
+    ip = random_ip()
+    print('ip:', ip)
+    chrome_options = Options()
+    webdriver.DesiredCapabilities.CHROME['proxy'] = {
+        "httpProxy": ip,
+        "ftpProxy": ip,
+        "sslProxy": ip,
+        "proxyType": "MANUAL",
+    }
+    # options = webdriver.ChromeOptions()
+    # chrome_options.add_argument("--start-maximized")
+    # chrome_options.add_argument('--no-sandbox')
+    # chrome_options.add_argument('--disable-dev-shm-usage')
     # cookies = pickle.load(open("C:\igquery\crawl\cookies.pkl", "rb"))
     cookies = pickle.load(open("/home/hsingyi/igquery/crawl/cookies.pkl", "rb"))
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(options=chrome_options)
     print('ig_link',ig_link)
     driver.get('https://business.notjustanalytics.com/plus/' + ig_link)
     
@@ -25,6 +58,7 @@ def get_driver(ig_link) :
 
 def get_data(driver, data) :
     time.sleep(25)
+    driver.save_screenshot('screenshot123.png')
     try :
         ok_button = driver.find_element(By.CLASS_NAME, 'swal2-confirm')
         ok_button.click()
