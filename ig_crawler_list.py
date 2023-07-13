@@ -1,54 +1,24 @@
-import random
 import mysql.connector
 import pickle
 import time
 import re
+import os
 import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-import undetected_chromedriver as uc
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
+import mysql.connector.pooling
 
-def random_ip() :
-    proxies = [
-        '20.219.180.149',
-        '202.142.74.76',
-        '47.254.169.94',
-        '82.165.184.53',
-        '209.127.39.102',
-        '186.121.235.66',
-        '45.199.141.47',
-        '20.219.176.57',
-        '200.105.215.22',
-        '46.209.222.211',
-        '8.219.64.236',
-        '20.204.214.23',
-        '24.152.40.49',
-        '5.188.154.104',
-        '185.220.103.7',
-        '185.15.172.212'
-    ]
-    proxy_ip = random.choice(proxies)
-    return  proxy_ip
 
 def get_driver(ig_link) :
-    ip = random_ip()
-    print('ip:', ip)
-    chrome_options = Options()
-    webdriver.DesiredCapabilities.CHROME['proxy'] = {
-        "httpProxy": ip,
-        "ftpProxy": ip,
-        "sslProxy": ip,
-        "proxyType": "MANUAL",
-    }
-    # options = webdriver.ChromeOptions()
-    # chrome_options.add_argument("--start-maximized")
-    # chrome_options.add_argument('--no-sandbox')
-    # chrome_options.add_argument('--disable-dev-shm-usage')
-    # cookies = pickle.load(open("C:\igquery\crawl\cookies.pkl", "rb"))
-    cookies = pickle.load(open("/home/hsingyi/igquery/crawl/cookies.pkl", "rb"))
-    driver = webdriver.Chrome(options=chrome_options)
+    options = webdriver.ChromeOptions()
+    options.add_argument("--start-maximized")
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    cookies = pickle.load(open("C:\igquery\crawl\cookies.pkl", "rb"))
+    # cookies = pickle.load(open("/home/hsingyi/igquery/crawl/cookies.pkl", "rb"))
+    # cookies = pickle.load(open("/root/igquery/crawl/cookies.pkl", "rb"))
+
+    driver = webdriver.Chrome(options=options)
     print('ig_link',ig_link)
     driver.get('https://business.notjustanalytics.com/plus/' + ig_link)
     
@@ -57,8 +27,7 @@ def get_driver(ig_link) :
     return driver
 
 def get_data(driver, data) :
-    time.sleep(25)
-    driver.save_screenshot('screenshot123.png')
+    time.sleep(28)
     try :
         ok_button = driver.find_element(By.CLASS_NAME, 'swal2-confirm')
         ok_button.click()
@@ -122,10 +91,28 @@ def get_data(driver, data) :
         print(e)
 
 
+
+def language_type(text) :
+    chinese_pattern = re.compile(r'[\u4e00-\u9fff]') # 中文
+    japanese_pattern = re.compile(r'[\u3040-\u30ff]') # 日文
+    english_pattern = re.compile(r'[a-zA-Z]') # 英文
+    has_chinese = bool(chinese_pattern.search(text))
+    has_japanese = bool(japanese_pattern.search(text))
+    has_english = bool(english_pattern.search(text))
+    if has_japanese :
+        return 2
+    if has_chinese :
+        return 0
+    elif has_english :
+        return 1
+    else:
+        return 3
+
 def recommended_list(driver):
     try :
         related_1 = driver.find_element(By.ID, 'related_1')
         a_tags = related_1.find_elements(By.XPATH, '//a[contains(@onclick, "goToAnalysis")]')
+        recommand_ig_cnt = 0
         for a_tag in a_tags :
             onclick_value = a_tag.get_attribute('onclick')
             match = re.findall(r"goToAnalysis\(['\"](.+?)['\"]", onclick_value)
@@ -135,16 +122,17 @@ def recommended_list(driver):
                 cursor.execute("SELECT ig_link FROM ig_list WHERE `ig_link`=%s",(result,)) # 判斷是否有重複
                 row = cursor.fetchall()
                 if len(row) == 0 and result is not None:
-                    print('rcmd',result)
+                    print('rcmd_ig',result)
+                    recommand_ig_cnt += 1
                     cursor.execute(
                         "INSERT INTO ig_list (`ig_link`, `fans`, `crawl_count`, `error_count`, `type`, `pre_crawl_time`, `crawl_time`) VALUE ("+repr(result)+", 0, 0, 0, 4, "+repr(crawl_time)+", '0000-00-00 00:00:00')"
                     )
                 maxdb.commit()
             else:
                 continue
+        print('recommand_ig_cnt',recommand_ig_cnt)
     except Exception as e :
         print('no related_1 @onclick or ig_link duplicate')
-
 
 def language_type(text) :
     chinese_pattern = re.compile(r'[\u4e00-\u9fff]') # 中文
@@ -192,7 +180,6 @@ def clear_duplicate_data(ig_link, table_name) : # 1.如漲/降粉 判斷是否�
     except Exception as e :
         print('clear_duplicate_data error')
 
-
 def fans_table(num): #根據粉絲對照table
     table_name = ''
     int(num)
@@ -218,10 +205,10 @@ if __name__ == '__main__':
     crawl_time = now.strftime('%Y-%m-%d %H:%M:%S')
     print('crawl_time -------- ' + crawl_time)
     maxdb = mysql.connector.connect(
-    host = "139.162.97.51",
-    user = "cfd_ig_query_mysql",
-    password = "cfd_igquery_igquery",
-    database = "igquery",
+        host = "172.104.78.213",
+        user = "cfd_ig_query_mysql",
+        password = "cfd_igquery_igquery",
+        database = "igquery",
     )
     cursor=maxdb.cursor()
     cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list WHERE `error_count`<=3 ORDER BY `crawl_count` ASC, `type` ASC, RAND() LIMIT 1") #隨機撈一個帳號且次數最少
@@ -231,6 +218,6 @@ if __name__ == '__main__':
     driver = get_driver(ig_link)
     get_data(driver, row)
     recommended_list(driver)
-    cursor.close()
+    # cursor.close()
     maxdb.close()
     driver.quit()
