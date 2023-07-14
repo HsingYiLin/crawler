@@ -7,6 +7,9 @@ import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import mysql.connector.pooling
+import os
+import sys
+import random
 
 
 def get_driver(ig_link) :
@@ -14,33 +17,28 @@ def get_driver(ig_link) :
     options.add_argument("--start-maximized")
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    cookies = pickle.load(open("C:\igquery\crawl\cookies.pkl", "rb"))
+    # cookies = pickle.load(open("C:\\igquery\\crawl\\cookies.pkl", "rb"))
     # cookies = pickle.load(open("/home/hsingyi/igquery/crawl/cookies.pkl", "rb"))
-    # cookies = pickle.load(open("/root/igquery/crawl/cookies.pkl", "rb"))
-
+    cookies = pickle.load(open("/root/igquery/crawl/cookies.pkl", "rb"))
     driver = webdriver.Chrome(options=options)
-    print('ig_link',ig_link)
+    print('ig_link', ig_link)
     driver.get('https://business.notjustanalytics.com/plus/' + ig_link)
-    
     for cookie in cookies :
         driver.add_cookie(cookie)
     return driver
 
-def get_data(driver, data) :
-    time.sleep(28)
-    try :
-        ok_button = driver.find_element(By.CLASS_NAME, 'swal2-confirm')
-        ok_button.click()
-    except :
-        pass   
-
-    try :
-        crawl_count = data[1]
-        error_count = data[2]
+def get_data(driver, ig_link, crawl_count, error_count) :
+    start_time = time.time()
+    while time.time() - start_time < 25:
         username = driver.find_element(By.ID, 'username').text
-        ig_name = driver.find_element(By.ID, 'fullname').text
+        if username != '' :
+            break
+        else :
+            time.sleep(5)
+    try :
         print('username', username)
         if username != '' :
+            ig_name = driver.find_element(By.ID, 'fullname').text
             type_str = language_type(ig_name)
             fans = driver.find_element(By.ID, 'follower').text.replace(',', '')
             following = driver.find_element(By.ID, 'following').text.replace(',', '')
@@ -57,8 +55,7 @@ def get_data(driver, data) :
             
             table_name = fans_table(int_fans)
             is_insert = clear_duplicate_data(username, table_name)
-            print('table_name', table_name)
-            print('is_insert', is_insert)
+            print('table_name', table_name, is_insert)
             if table_name != '' :
                 if is_insert :
                     cursor.execute(
@@ -66,29 +63,37 @@ def get_data(driver, data) :
                     )
                 else :
                     cursor.execute(
-                        "UPDATE "+ table_name +" SET ig_name="+repr(ig_name)+", fans="+str(int_fans)+", following="+str(int_following)+", `post`="+str(int_post)+", avg_like="+str(int_avg_like)+", avg_comment="+str(int_avg_comment)+", avg_views="+str(int_avg_views)+", type="+str(type_str)+", crawl_time="+repr(crawl_time)+" WHERE ig_link="+repr(username)
+                        "UPDATE "+ table_name +" SET ig_name="+repr(ig_name)+", fans="+str(int_fans)+", following="+str(int_following)+", `post`="+str(int_post)+", avg_like="+str(int_avg_like)+", avg_comment="+str(int_avg_comment)+", avg_views="+str(int_avg_views)+", type="+str(type_str)+", crawl_time="+repr(crawl_time)+" WHERE ig_link="+repr(ig_link)
                     )
             crawl_count += 1
             cursor.execute(
-                "UPDATE ig_list SET `fans`="+str(int_fans)+", `crawl_count`="+str(crawl_count)+", `type`="+str(type_str)+", `crawl_time`="+repr(crawl_time)+" WHERE `ig_link`="+repr(username)
+                "UPDATE ig_list SET `fans`="+str(int_fans)+", `crawl_count`="+str(crawl_count)+", `type`="+str(type_str)+", `crawl_time`="+repr(crawl_time)+" WHERE `ig_link`="+repr(ig_link)
             )
             maxdb.commit()
         else :
             error_count += 1
             crawl_count += 1
             cursor.execute(
-                "UPDATE ig_list SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+" WHERE `ig_link`="+repr(username)
+                "UPDATE ig_list SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+" WHERE `ig_link`="+repr(ig_link)
             )
             maxdb.commit()
+            cursor.close()
+            maxdb.close()
+            driver.quit()
+            sys.exit()
     except Exception as e :
         error_count += 1
         crawl_count += 1
         cursor.execute(
-            "UPDATE ig_list SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+" WHERE `ig_link`="+repr(username)
+            "UPDATE ig_list SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+" WHERE `ig_link`="+repr(ig_link)
         )
         maxdb.commit()
         print('no By.ID: ' + ig_link)
         print(e)
+        cursor.close()
+        maxdb.close()
+        driver.quit()
+        sys.exit()
 
 
 
@@ -210,14 +215,20 @@ if __name__ == '__main__':
         password = "cfd_igquery_igquery",
         database = "igquery",
     )
-    cursor=maxdb.cursor()
-    cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list WHERE `error_count`<=3 ORDER BY `crawl_count` ASC, `type` ASC, RAND() LIMIT 1") #隨機撈一個帳號且次數最少
+    cursor = maxdb.cursor()
+    # cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list WHERE `error_count`<=2 ORDER BY `crawl_count` ASC, `type` ASC LIMIT 70") #隨機撈一個帳號且次數最少
+    cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list WHERE `error_count`<=2 ORDER BY `crawl_count` ASC, `type` ASC, RAND() LIMIT 1") #隨機撈一個帳號且次數最少
     row = cursor.fetchone()
+    # random_number = random.randint(0, 69)
+    # ig_link = row[random_number][0]
+    # crawl_count = row[random_number][1]
+    # error_count = row[random_number][2]
     ig_link = row[0]
-    table_name = ''
+    crawl_count = row[1]
+    error_count = row[2]
     driver = get_driver(ig_link)
-    get_data(driver, row)
+    get_data(driver, ig_link, crawl_count, error_count)
     recommended_list(driver)
-    # cursor.close()
+    cursor.close()
     maxdb.close()
     driver.quit()
