@@ -2,14 +2,30 @@ import mysql.connector
 import pickle
 import time
 import re
-import os
 import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import mysql.connector.pooling
-import os
 import sys
 import random
+import subprocess
+import re
+import json
+
+
+def get_remote_ip_address():
+    command = "ip addr show"
+    output = subprocess.check_output(command, shell=True).decode("utf-8")
+    ip_addresses = re.findall(r"inet (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})", output)
+    if ip_addresses[1] is not None : 
+        with open("/root/igquery/crawl/ip.json", 'r') as file:
+        # with open("/home/hsingyi/igquery/crawl/ip.json", 'r') as file:
+            json_data = json.load(file)
+            if(len(json_data)) :
+                for item in json_data:
+                    if item['ip'] == str(ip_addresses[1]):
+                        return item['mark']
+            return ''    
 
 
 def get_driver(ig_link) :
@@ -27,7 +43,8 @@ def get_driver(ig_link) :
         driver.add_cookie(cookie)
     return driver
 
-def get_data(driver, ig_link, crawl_count, error_count) :
+
+def get_data(driver, ig_link, crawl_count, error_count, mark) :
     start_time = time.time()
     while time.time() - start_time < 25:
         username = driver.find_element(By.ID, 'username').text
@@ -67,14 +84,20 @@ def get_data(driver, ig_link, crawl_count, error_count) :
                     )
             crawl_count += 1
             cursor.execute(
-                "UPDATE ig_list SET `fans`="+str(int_fans)+", `crawl_count`="+str(crawl_count)+", `type`="+str(type_str)+", `crawl_time`="+repr(crawl_time)+" WHERE `ig_link`="+repr(ig_link)
+                "UPDATE ig_list SET `fans`="+str(int_fans)+", `crawl_count`="+str(crawl_count)+", `type`="+str(type_str)+", `crawl_time`="+repr(crawl_time)+", `ip_mark`="+repr(mark)+" WHERE `ig_link`="+repr(ig_link)
+            )
+            cursor.execute(
+                "UPDATE ig_list_tmp SET `crawl_count`="+str(crawl_count)+", `type`="+str(type_str)+" WHERE `ig_link`="+repr(ig_link)
             )
             maxdb.commit()
         else :
             error_count += 1
             crawl_count += 1
             cursor.execute(
-                "UPDATE ig_list SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+" WHERE `ig_link`="+repr(ig_link)
+                "UPDATE ig_list SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+", `ip_mark`="+repr(mark)+" WHERE `ig_link`="+repr(ig_link)
+            )
+            cursor.execute(
+                "UPDATE ig_list_tmp SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+" WHERE `ig_link`="+repr(ig_link)
             )
             maxdb.commit()
             cursor.close()
@@ -85,7 +108,10 @@ def get_data(driver, ig_link, crawl_count, error_count) :
         error_count += 1
         crawl_count += 1
         cursor.execute(
-            "UPDATE ig_list SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+" WHERE `ig_link`="+repr(ig_link)
+            "UPDATE ig_list SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+", `ip_mark`="+repr(mark)+" WHERE `ig_link`="+repr(ig_link)
+        )
+        cursor.execute(
+            "UPDATE ig_list_tmp SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+" WHERE `ig_link`="+repr(ig_link)
         )
         maxdb.commit()
         print('no By.ID: ' + ig_link)
@@ -94,7 +120,6 @@ def get_data(driver, ig_link, crawl_count, error_count) :
         maxdb.close()
         driver.quit()
         sys.exit()
-
 
 
 def language_type(text) :
@@ -113,6 +138,7 @@ def language_type(text) :
     else:
         return 3
 
+
 def recommended_list(driver):
     try :
         related_1 = driver.find_element(By.ID, 'related_1')
@@ -130,14 +156,15 @@ def recommended_list(driver):
                     print('rcmd_ig',result)
                     recommand_ig_cnt += 1
                     cursor.execute(
-                        "INSERT INTO ig_list (`ig_link`, `fans`, `crawl_count`, `error_count`, `type`, `pre_crawl_time`, `crawl_time`) VALUE ("+repr(result)+", 0, 0, 0, 4, "+repr(crawl_time)+", '0000-00-00 00:00:00')"
+                        "INSERT INTO rcmd_list_tmp (`ig_link`, `pre_crawl_time`) VALUE ("+repr(result)+", "+repr(crawl_time)+")"
                     )
                 maxdb.commit()
             else:
                 continue
         print('recommand_ig_cnt',recommand_ig_cnt)
     except Exception as e :
-        print('no related_1 @onclick or ig_link duplicate')
+        print('no related_1 @onclick')
+
 
 def language_type(text) :
     chinese_pattern = re.compile(r'[\u4e00-\u9fff]') # 中文
@@ -185,6 +212,7 @@ def clear_duplicate_data(ig_link, table_name) : # 1.如漲/降粉 判斷是否�
     except Exception as e :
         print('clear_duplicate_data error')
 
+
 def fans_table(num): #根據粉絲對照table
     table_name = ''
     int(num)
@@ -205,10 +233,14 @@ def fans_table(num): #根據粉絲對照table
             table_name = 'ig_crawler_list_1_10k'
     return table_name
 
+
 if __name__ == '__main__':
     now = datetime.datetime.now()
     crawl_time = now.strftime('%Y-%m-%d %H:%M:%S')
     print('crawl_time -------- ' + crawl_time)
+    ip_mark = get_remote_ip_address()
+    # ip_mark = 'local' # local test
+    print (ip_mark)
     maxdb = mysql.connector.connect(
         host = "172.104.78.213",
         user = "cfd_ig_query_mysql",
@@ -216,18 +248,14 @@ if __name__ == '__main__':
         database = "igquery",
     )
     cursor = maxdb.cursor()
-    # cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list WHERE `error_count`<=2 ORDER BY `crawl_count` ASC, `type` ASC LIMIT 70") #隨機撈一個帳號且次數最少
-    cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list WHERE `error_count`<=2 ORDER BY `crawl_count` ASC, `type` ASC, RAND() LIMIT 1") #隨機撈一個帳號且次數最少
+    cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list_tmp WHERE `error_count`<=2 ORDER BY `crawl_count` ASC, `type` ASC, RAND() LIMIT 1")
     row = cursor.fetchone()
-    # random_number = random.randint(0, 69)
-    # ig_link = row[random_number][0]
-    # crawl_count = row[random_number][1]
-    # error_count = row[random_number][2]
     ig_link = row[0]
     crawl_count = row[1]
     error_count = row[2]
+    ip_mark = get_remote_ip_address()
     driver = get_driver(ig_link)
-    get_data(driver, ig_link, crawl_count, error_count)
+    get_data(driver, ig_link, crawl_count, error_count, ip_mark)
     recommended_list(driver)
     cursor.close()
     maxdb.close()
