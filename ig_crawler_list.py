@@ -7,7 +7,6 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 import mysql.connector.pooling
 import sys
-import random
 import subprocess
 import re
 import json
@@ -18,8 +17,8 @@ def get_remote_ip_address():
     output = subprocess.check_output(command, shell=True).decode("utf-8")
     ip_addresses = re.findall(r"inet (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})", output)
     if ip_addresses[1] is not None : 
-        with open("/root/igquery/crawl/ip.json", 'r') as file:
-        # with open("/home/hsingyi/igquery/crawl/ip.json", 'r') as file:
+        # with open("/root/igquery/crawl/ip.json", 'r') as file:
+        with open("/home/hsingyi/igquery/crawl/ip.json", 'r') as file:
             json_data = json.load(file)
             if(len(json_data)) :
                 for item in json_data:
@@ -34,8 +33,8 @@ def get_driver(ig_link) :
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     # cookies = pickle.load(open("C:\\igquery\\crawl\\cookies.pkl", "rb"))
-    # cookies = pickle.load(open("/home/hsingyi/igquery/crawl/cookies.pkl", "rb"))
-    cookies = pickle.load(open("/root/igquery/crawl/cookies.pkl", "rb"))
+    cookies = pickle.load(open("/home/hsingyi/igquery/crawl/cookies.pkl", "rb"))
+    # cookies = pickle.load(open("/root/igquery/crawl/cookies.pkl", "rb"))
     driver = webdriver.Chrome(options=options)
     print('ig_link', ig_link)
     driver.get('https://business.notjustanalytics.com/plus/' + ig_link)
@@ -144,23 +143,28 @@ def recommended_list(driver):
         related_1 = driver.find_element(By.ID, 'related_1')
         a_tags = related_1.find_elements(By.XPATH, '//a[contains(@onclick, "goToAnalysis")]')
         recommand_ig_cnt = 0
+        # file_path = "C:\\igquery\\crawl\\rcmd.txt"
+        file_path = "/home/hsingyi/igquery/crawl/rcmd.txt"
+        # file_path = "/root/igquery/crawl/rcmd.txt"
+        dynamic_data = []
         for a_tag in a_tags :
             onclick_value = a_tag.get_attribute('onclick')
             match = re.findall(r"goToAnalysis\(['\"](.+?)['\"]", onclick_value)
             if match:
                 start_index = match[0].index('plus/') + len('plus/')
                 result = match[0][start_index:]
-                cursor.execute("SELECT ig_link FROM ig_list WHERE `ig_link`=%s",(result,)) # 判斷是否有重複
-                row = cursor.fetchall()
-                if len(row) == 0 and result is not None:
+                if result is not None and result != '':
                     print('rcmd_ig',result)
                     recommand_ig_cnt += 1
-                    cursor.execute(
-                        "INSERT INTO rcmd_list_tmp (`ig_link`, `pre_crawl_time`) VALUE ("+repr(result)+", "+repr(crawl_time)+")"
-                    )
-                maxdb.commit()
+                    obj = {'ig_link': result, 'pre_crawl_time': str(crawl_time)}
+                    dynamic_data.append(obj)
             else:
                 continue
+        if len(dynamic_data) > 0 :
+            with open(file_path, "a") as txt_file:
+                for data in dynamic_data:
+                    json_data = json.dumps(data)  # 將字典轉換為 JSON 格式的字串
+                    txt_file.write(json_data + "\n")
         print('recommand_ig_cnt',recommand_ig_cnt)
     except Exception as e :
         print('no related_1 @onclick')
@@ -253,10 +257,12 @@ if __name__ == '__main__':
     ig_link = row[0]
     crawl_count = row[1]
     error_count = row[2]
-    ip_mark = get_remote_ip_address()
     driver = get_driver(ig_link)
     get_data(driver, ig_link, crawl_count, error_count, ip_mark)
     recommended_list(driver)
     cursor.close()
     maxdb.close()
     driver.quit()
+    now_end = datetime.datetime.now()
+    end_time = now_end.strftime('%Y-%m-%d %H:%M:%S')
+    print('end_time -------- ' + end_time)
