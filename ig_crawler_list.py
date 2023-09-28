@@ -33,8 +33,8 @@ def get_driver(ig_link) :
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     # cookies = pickle.load(open("C:\\igquery\\crawl\\cookies.pkl", "rb"))
-    cookies = pickle.load(open("/home/hsingyi/igquery/crawl/cookies.pkl", "rb"))
-    # cookies = pickle.load(open("/root/igquery/crawl/cookies.pkl", "rb"))
+    # cookies = pickle.load(open("/home/hsingyi/igquery/crawl/cookies.pkl", "rb"))
+    cookies = pickle.load(open("/root/igquery/crawl/cookies.pkl", "rb"))
     driver = webdriver.Chrome(options=options)
     print('ig_link', ig_link)
     driver.get('https://business.notjustanalytics.com/plus/' + ig_link)
@@ -89,6 +89,7 @@ def get_data(driver, ig_link, crawl_count, error_count, table_name_org, mark) :
                 "UPDATE ig_list_tmp SET `crawl_count`="+str(crawl_count)+", `type`="+str(type_str)+" WHERE `ig_link`="+repr(ig_link)
             )
             maxdb.commit()
+            crawl_data_total(mark, crawl_time)
         else :
             error_count += 1
             crawl_count += 1
@@ -231,6 +232,23 @@ def which_fans_table(num): #根據粉絲對照table
             fansTable = table['tableName']
             break
     return fansTable
+
+
+def crawl_data_total(ip_mark, crawl_time):
+    cursor = maxdb.cursor()
+    cursor.execute(
+        f"""
+        UPDATE crawl_log SET 
+        `crawl_times_hour`=`crawl_times_hour`+1, 
+        `crawl_times_day`=`crawl_times_day`+1, 
+        `crawl_times_week`=`crawl_times_week`+1,
+        `crawl_update_time`='{crawl_time}'
+        WHERE `ip_mark`='{ip_mark}'
+        """
+    )
+    maxdb.commit()
+    print('crawl_log++')
+
 
 if __name__ == '__main__':
     now = datetime.datetime.now()
