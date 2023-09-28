@@ -43,7 +43,7 @@ def get_driver(ig_link) :
     return driver
 
 
-def get_data(driver, ig_link, crawl_count, error_count, mark) :
+def get_data(driver, ig_link, crawl_count, error_count, table_name_org, mark) :
     start_time = time.time()
     while time.time() - start_time < 25:
         username = driver.find_element(By.ID, 'username').text
@@ -69,21 +69,21 @@ def get_data(driver, ig_link, crawl_count, error_count, mark) :
             int_avg_comment = int(avg_comment) if avg_comment != '' and avg_comment != '--' else 0
             int_avg_views = int(avg_views) if avg_views != '' and avg_views != '--' else 0
             
-            table_name = fans_table(int_fans)
-            is_insert = clear_duplicate_data(username, table_name)
-            print('table_name', table_name, is_insert)
-            if table_name != '' :
+            fans_table = which_fans_table(int_fans)
+            is_insert = clear_duplicate_data(username, fans_table)
+            print('fans_table', fans_table, is_insert)
+            if fans_table != '' :
                 if is_insert :
                     cursor.execute(
-                        "INSERT INTO "+ table_name +" (`ig_link`, `ig_name`, `fans`, `following`, `post`, `avg_like`, `avg_comment`, `avg_views`, `type`, `crawl_time`) VALUE ("+repr(username)+", "+repr(ig_name)+", "+str(int_fans)+", "+str(int_following)+", "+str(int_post)+", "+str(int_avg_like)+", "+str(int_avg_comment)+", "+str(int_avg_views)+", "+str(type_str)+", "+repr(crawl_time)+")"
+                        "INSERT INTO "+ fans_table +" (`ig_link`, `ig_name`, `fans`, `following`, `post`, `avg_like`, `avg_comment`, `avg_views`, `type`, `crawl_time`) VALUES ("+repr(username)+", "+repr(ig_name)+", "+str(int_fans)+", "+str(int_following)+", "+str(int_post)+", "+str(int_avg_like)+", "+str(int_avg_comment)+", "+str(int_avg_views)+", "+str(type_str)+", "+repr(crawl_time)+")"
                     )
                 else :
                     cursor.execute(
-                        "UPDATE "+ table_name +" SET ig_name="+repr(ig_name)+", fans="+str(int_fans)+", following="+str(int_following)+", `post`="+str(int_post)+", avg_like="+str(int_avg_like)+", avg_comment="+str(int_avg_comment)+", avg_views="+str(int_avg_views)+", type="+str(type_str)+", crawl_time="+repr(crawl_time)+" WHERE ig_link="+repr(ig_link)
+                        "UPDATE "+ fans_table +" SET ig_name="+repr(ig_name)+", fans="+str(int_fans)+", following="+str(int_following)+", `post`="+str(int_post)+", avg_like="+str(int_avg_like)+", avg_comment="+str(int_avg_comment)+", avg_views="+str(int_avg_views)+", type="+str(type_str)+", crawl_time="+repr(crawl_time)+" WHERE ig_link="+repr(ig_link)
                     )
             crawl_count += 1
             cursor.execute(
-                "UPDATE ig_list SET `fans`="+str(int_fans)+", `crawl_count`="+str(crawl_count)+", `type`="+str(type_str)+", `crawl_time`="+repr(crawl_time)+", `ip_mark`="+repr(mark)+" WHERE `ig_link`="+repr(ig_link)
+                f"UPDATE {table_name_org} SET `fans`="+str(int_fans)+", `crawl_count`="+str(crawl_count)+", `type`="+str(type_str)+", `crawl_time`="+repr(crawl_time)+", `ip_mark`="+repr(mark)+" WHERE `ig_link`="+repr(ig_link)
             )
             cursor.execute(
                 "UPDATE ig_list_tmp SET `crawl_count`="+str(crawl_count)+", `type`="+str(type_str)+" WHERE `ig_link`="+repr(ig_link)
@@ -93,7 +93,7 @@ def get_data(driver, ig_link, crawl_count, error_count, mark) :
             error_count += 1
             crawl_count += 1
             cursor.execute(
-                "UPDATE ig_list SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+", `ip_mark`="+repr(mark)+" WHERE `ig_link`="+repr(ig_link)
+                f"UPDATE {table_name_org} SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+", `ip_mark`="+repr(mark)+" WHERE `ig_link`="+repr(ig_link)
             )
             cursor.execute(
                 "UPDATE ig_list_tmp SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+" WHERE `ig_link`="+repr(ig_link)
@@ -107,7 +107,7 @@ def get_data(driver, ig_link, crawl_count, error_count, mark) :
         error_count += 1
         crawl_count += 1
         cursor.execute(
-            "UPDATE ig_list SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+", `ip_mark`="+repr(mark)+" WHERE `ig_link`="+repr(ig_link)
+            f"UPDATE {table_name_org} SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+", `ip_mark`="+repr(mark)+" WHERE `ig_link`="+repr(ig_link)
         )
         cursor.execute(
             "UPDATE ig_list_tmp SET `crawl_count`="+str(crawl_count)+", `error_count`="+str(error_count)+" WHERE `ig_link`="+repr(ig_link)
@@ -187,22 +187,24 @@ def language_type(text) :
         return 3
 
 
-def clear_duplicate_data(ig_link, table_name) : # 1.如漲/降粉 判斷是否該換表 2.判斷insert/update
+def clear_duplicate_data(ig_link, fans_table) : # 1.如漲/降粉 判斷是否該換表 2.判斷insert/update
+    # file_path = r'C:\igquery\crawl\tableNameFans.json'
+    file_path = r'/home/hsingyi/igquery/crawl/tableNameFans.json'
+    # file_path = r'/root/igquery/crawl/tableNameFans.json'
     sql = "SELECT table_name FROM ( "
-    sql += "SELECT 'ig_crawler_list_1_10k' AS table_name, ig_link FROM ig_crawler_list_1_10k WHERE ig_link ="+"'"+ig_link+"'"+" UNION ALL "
-    sql += "SELECT 'ig_crawler_list_10k_50k' AS table_name, ig_link FROM ig_crawler_list_10k_50k WHERE ig_link ="+"'"+ig_link+"'"+" UNION ALL "
-    sql += "SELECT 'ig_crawler_list_50k_100k' AS table_name, ig_link FROM ig_crawler_list_50k_100k WHERE ig_link ="+"'"+ig_link+"'"+" UNION ALL "
-    sql += "SELECT 'ig_crawler_list_100k_300k' AS table_name, ig_link FROM ig_crawler_list_100k_300k WHERE ig_link ="+"'"+ig_link+"'"+" UNION ALL "
-    sql += "SELECT 'ig_crawler_list_300k_500k' AS table_name, ig_link FROM ig_crawler_list_300k_500k WHERE ig_link ="+"'"+ig_link+"'"+" UNION ALL "
-    sql += "SELECT 'ig_crawler_list_500k_1m' AS table_name, ig_link FROM ig_crawler_list_500k_1m WHERE ig_link ="+"'"+ig_link+"'"+" UNION ALL "
-    sql += "SELECT 'ig_crawler_list_1m' AS table_name, ig_link FROM ig_crawler_list_1m WHERE ig_link ="+"'"+ig_link+"'"+" "
+    with open(file_path, 'r') as json_file:
+        fansTableJson = json.load(json_file)
+    for table in fansTableJson:
+        sql += f"SELECT '{table['tableName']}' AS table_name, ig_link FROM {table['tableName']} WHERE ig_link ='{ig_link}' "
+        if table is not fansTableJson[-1]: # 檢查是否是最後一個元素
+            sql += " UNION ALL "
     sql += ") AS tables"
     try:
         cursor.execute(sql)
         row = cursor.fetchall()
         if len(row) > 1 :
             for table in row :
-                if table[0] != table_name :
+                if table[0] != fans_table :
                     print('duplicate_data table',table[0])
                     cursor.execute(
                         "DELETE FROM "+ table[0] +" WHERE `ig_link`=%s",
@@ -217,26 +219,18 @@ def clear_duplicate_data(ig_link, table_name) : # 1.如漲/降粉 判斷是否�
         print('clear_duplicate_data error')
 
 
-def fans_table(num): #根據粉絲對照table
-    table_name = ''
-    int(num)
-    if num >= 1 :
-        if num >=1000000 :
-            table_name = 'ig_crawler_list_1m'
-        elif num >= 500000 :
-            table_name = 'ig_crawler_list_500k_1m'
-        elif num >= 300000 :
-            table_name = 'ig_crawler_list_300k_500k'
-        elif num >= 100000 :
-            table_name = 'ig_crawler_list_100k_300k'
-        elif num >= 50000 :
-            table_name = 'ig_crawler_list_50k_100k'
-        elif num >= 10000 :
-            table_name = 'ig_crawler_list_10k_50k'
-        else :
-            table_name = 'ig_crawler_list_1_10k'
-    return table_name
-
+def which_fans_table(num): #根據粉絲對照table
+    # file_path = r'C:\igquery\crawl\tableNameFans.json'
+    file_path = r'/home/hsingyi/igquery/crawl/tableNameFans.json'
+    # file_path = r'/root/igquery/crawl/tableNameFans.json'
+    fansTable = ''
+    with open(file_path, 'r') as json_file:
+        fansTableJson = json.load(json_file)
+    for table in fansTableJson:
+        if num >= table['fansMin']:
+            fansTable = table['tableName']
+            break
+    return fansTable
 
 if __name__ == '__main__':
     now = datetime.datetime.now()
@@ -244,7 +238,6 @@ if __name__ == '__main__':
     print('crawl_time -------- ' + crawl_time)
     ip_mark = get_remote_ip_address()
     # ip_mark = 'local' # local test
-    print (ip_mark)
     maxdb = mysql.connector.connect(
         host = "172.104.78.213",
         user = "cfd_ig_query_mysql",
@@ -252,13 +245,15 @@ if __name__ == '__main__':
         database = "igquery",
     )
     cursor = maxdb.cursor()
-    cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count` FROM ig_list_tmp WHERE `error_count`<=2 ORDER BY `crawl_count` ASC, `type` ASC, RAND() LIMIT 1")
+    cursor.execute("SELECT `ig_link`, `crawl_count`, `error_count`, `table_name_org` FROM ig_list_tmp WHERE `error_count`<=2 ORDER BY `crawl_count` ASC, `type` ASC, RAND() LIMIT 1")
     row = cursor.fetchone()
     ig_link = row[0]
     crawl_count = row[1]
     error_count = row[2]
+    table_name_org = row[3]
+    print(ig_link)
     driver = get_driver(ig_link)
-    get_data(driver, ig_link, crawl_count, error_count, ip_mark)
+    get_data(driver, ig_link, crawl_count, error_count, table_name_org, ip_mark)
     recommended_list(driver)
     cursor.close()
     maxdb.close()

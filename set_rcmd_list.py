@@ -24,11 +24,19 @@ if __name__ == '__main__':
         with open(new_filename, "r") as txt_file:
             for line in txt_file:
                 data = json.loads(line.strip()) # 將每一行的 JSON 字串解析為 Python 字典
-                cursor.execute("SELECT ig_link FROM ig_list WHERE `ig_link`=%s",(data['ig_link'],)) # 判斷是否有重複
+                ig_linkLen = len(data['ig_link'])
+                if ig_linkLen <= 7:
+                    tableName = "ig_list_strlen_7"
+                elif ig_linkLen > 7 and ig_linkLen < 23:
+                    tableName = f"ig_list_strlen_{ig_linkLen}"
+                else:
+                    tableName = "ig_list_strlen_23"
+                print(tableName)
+                cursor.execute(f"SELECT ig_link FROM {tableName} WHERE `ig_link`=%s",(data['ig_link'],)) # 判斷是否有重複
                 row = cursor.fetchall()
                 if len(row) == 0 :
                     print(data['ig_link'])
-                    query = "INSERT INTO ig_list (`ig_link`, `fans`, `crawl_count`, `error_count`, `type`, `pre_crawl_time`, `crawl_time`) VALUE (%s, %s, %s, %s, %s, %s, %s)"
+                    query = f"INSERT INTO {tableName} (`ig_link`, `fans`, `crawl_count`, `error_count`, `type`, `pre_crawl_time`, `crawl_time`) VALUE (%s, %s, %s, %s, %s, %s, %s)"
                     values = (data['ig_link'], 0, 0, 0, 4, data['pre_crawl_time'], '0000-00-00 00:00:00')
                     cursor.execute(query, values)
             maxdb.commit()

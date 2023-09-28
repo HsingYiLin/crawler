@@ -1,0 +1,86 @@
+[
+    {
+        "tableName": "ig_crawler_list_1m",
+        "fansMin": 1000000
+    },
+    {
+        "tableName": "ig_crawler_list_500k_1m",
+        "fansMin": 500000
+    },
+    {
+        "tableName": "ig_crawler_list_300k_500k",
+        "fansMin": 300000
+    },
+    {
+        "tableName": "ig_crawler_list_200k_300k",
+        "fansMin": 200000
+    },
+    {
+        "tableName": "ig_crawler_list_100k_200k",
+        "fansMin": 100000
+    },
+    {
+        "tableName": "ig_crawler_list_70k_100k",
+        "fansMin": 70000
+    },
+    {
+        "tableName": "ig_crawler_list_50k_70k",
+        "fansMin": 50000
+    },
+    {
+        "tableName": "ig_crawler_list_40k_50k",
+        "fansMin": 40000
+    },
+    {
+        "tableName": "ig_crawler_list_30k_40k",
+        "fansMin": 30000
+    },
+    {
+        "tableName": "ig_crawler_list_20k_30k",
+        "fansMin": 20000
+    },
+    {
+        "tableName": "ig_crawler_list_10k_20k",
+        "fansMin": 10000
+    },
+    {
+        "tableName": "ig_crawler_list_9k_10k",
+        "fansMin": 9000
+    },
+    {
+        "tableName": "ig_crawler_list_8k_9k",
+        "fansMin": 8000
+    },
+    {
+        "tableName": "ig_crawler_list_7k_8k",
+        "fansMin": 7000
+    },
+    {
+        "tableName": "ig_crawler_list_6k_7k",
+        "fansMin": 6000
+    },
+    {
+        "tableName": "ig_crawler_list_5k_6k",
+        "fansMin": 5000
+    },
+    {
+        "tableName": "ig_crawler_list_4k_5k",
+        "fansMin": 4000
+    },
+    {
+        "tableName": "ig_crawler_list_3k_4k",
+        "fansMin": 3000
+    },
+    {
+        "tableName": "ig_crawler_list_2k_3k",
+        "fansMin": 2000
+    },
+    {
+        "tableName": "ig_crawler_list_1k_2k",
+        "fansMin": 1000
+    },
+    {
+        "tableName": "ig_crawler_list_1_1k",
+        "fansMin": 1
+    }
+]
