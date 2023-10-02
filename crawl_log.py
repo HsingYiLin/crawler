@@ -20,30 +20,31 @@ def reset_crawl_times():
     maxdb = getMysqlConnect()
     cursor = maxdb.cursor()
     # file_path = r'C:\igquery\crawl\ip.json'
-    # file_path = r'/home/hsingyi/igquery/crawl/ip.json'
-    file_path = r'/root/igquery/crawl/ip.json'
+    file_path = r'/home/hsingyi/igquery/crawl/ip.json'
+    # file_path = r'/root/igquery/crawl/ip.json'
     with open(file_path, 'r') as json_file:
         ipJson = json.load(json_file)
     for ip in ipJson:
         ip_mark = ip['mark']
-        cursor.execute(f"SELECT * FROM crawl_log WHERE `ip_mark`='{ip_mark}'")
-        row = cursor.fetchone()
-        crawl_times_hour = row[3]
-        crawl_times_day = row[4]
-        crawl_times_week = row[5]
-        last_record = f"上週:{crawl_times_week},昨天:{crawl_times_day},前小時:{crawl_times_hour}"
         sql = ''
-        # #重製(週一0點)
-        if day_of_week == 0 and current_hour == 0 and current_minute == 0:
-            sql = " `crawl_times_hour`=0, `crawl_times_day`=0, `crawl_times_week`=0,"
-        # #重製(每天0點)
-        elif current_hour == 0 and current_minute == 0:
-            sql = " `crawl_times_hour`=0, `crawl_times_day`=0,"
-        # #重製(整點)
-        elif current_minute == 6:
-            sql = " `crawl_times_hour`=0,"
-        cursor.execute(f"UPDATE crawl_log SET {sql} `last_record` ='{last_record}' WHERE `ip_mark`='{ip_mark}'")
-        maxdb.commit()
+        if current_minute == 0: #重置(整點)
+            cursor.execute(f"SELECT * FROM crawl_log WHERE `ip_mark`='{ip_mark}'")
+            row = cursor.fetchone()
+            crawl_times_hour = row[3]
+            crawl_times_day = row[4]
+            crawl_times_week = row[5]
+            last_record = json.loads(row[7])
+            last_record['lasthour'] = crawl_times_hour
+            sql += "`crawl_times_hour`=0, "
+            if current_hour == 0: #重置(每天0點)
+                last_record['yesterday'] = crawl_times_day
+                sql += "`crawl_times_day`=0, "
+                if day_of_week == 0: #重置(週一0點)
+                    last_record['lastWeek'] = crawl_times_week
+                    sql += "`crawl_times_week`=0, "
+            last_record = json.dumps(last_record)
+            cursor.execute(f"UPDATE crawl_log SET {sql} `last_record`='{last_record}' WHERE `ip_mark`='{ip_mark}'")
+            maxdb.commit()
     cursor.close()
     maxdb.close()
 
