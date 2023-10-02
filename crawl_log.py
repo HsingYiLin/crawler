@@ -28,21 +28,31 @@ def reset_crawl_times():
         ip_mark = ip['mark']
         sql = ''
         if current_minute == 0: #重置(整點)
+            last_record = {} 
             cursor.execute(f"SELECT * FROM crawl_log WHERE `ip_mark`='{ip_mark}'")
             row = cursor.fetchone()
             crawl_times_hour = row[3]
             crawl_times_day = row[4]
             crawl_times_week = row[5]
-            last_record = json.loads(row[7])
-            last_record['lasthour'] = crawl_times_hour
+
+            if row[7] == '':
+                last_record['前小時'] = 0
+                last_record['昨天'] = 0
+                last_record['上週'] = 0
+            else:
+                last_record = json.loads(row[7])
+
+            last_record['前小時'] = crawl_times_hour
             sql += "`crawl_times_hour`=0, "
+
             if current_hour == 0: #重置(每天0點)
-                last_record['yesterday'] = crawl_times_day
+                last_record['昨天'] = crawl_times_day
                 sql += "`crawl_times_day`=0, "
                 if day_of_week == 0: #重置(週一0點)
-                    last_record['lastWeek'] = crawl_times_week
+                    last_record['上週'] = crawl_times_week
                     sql += "`crawl_times_week`=0, "
-            last_record = json.dumps(last_record)
+
+            last_record = json.dumps(last_record, ensure_ascii=False)
             cursor.execute(f"UPDATE crawl_log SET {sql} `last_record`='{last_record}' WHERE `ip_mark`='{ip_mark}'")
             maxdb.commit()
     cursor.close()
